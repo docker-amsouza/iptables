@@ -1,0 +1,55 @@
+1- Antes de instalar o IPTABLES, é necessário remover o NFTABLES
+
+sudo apt-get remove --auto-remove nftables => para remover o NFTABLES
+sudo apt-get purge nftables => remover por completo o NFTABLES 
+sudo apt-get install iptables => para instalar o IPTABLES 
+
+2- Caminho: cd /usr/local/bin => iremos criar o arquivo vi firewall.sh
+3- chmod +x firewall.sh => para aumentar o nivel de permissão
+	chmod: É o comando usado para alterar as permissões de arquivos ou diretórios no Linux e outros sistemas Unix-like.
+	+x: A opção +x adiciona a permissão de execução ao arquivo.
+	firewall.sh: O nome do arquivo (neste caso, um script shell) ao qual você está adicionando a permissão de execução.
+	
+4- Criando o: vi firewall.sh 
+
+#!/bin/bash
+# Limpar todas as regras pré existentes
+iptables -F		# Esse comando limpa todas as regras de todas as cadeias padrão do iptables (INPUT, FORWARD, OUTPUT) e qualquer outra cadeia personalizada que tenha sido criada.
+iptables -t nat -F	# Esse comando limpa todas as regras de NAT configuradas na tabela nat do iptables.
+
+# A linha abaixo ativa o módulo de netfilter que evita ataques DoS
+echo 1 > /proc/sys/net/ipv4/tcp_syncookies		# Esse comando habilita o recurso de TCP SYN cookies, garantindo que o sistema se proteja contra ataques de SYN flood, ao permitir que as conexões incompletas sejam tratadas de forma mais eficiente e sem consumir tantos recursos.
+
+#Liberar portas dos serviços necessários
+sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT		# Esse comando configura o firewall do sistema para permitir conexões SSH na porta 22. Ou seja, ele autoriza que pacotes TCP destinados à porta 22, geralmente utilizada para conexões SSH, possam entrar no sistema.
+sudo iptables -A INPUT -p tcp --dport 53 -j ACCEPT		# Esse comando configura uma regra de firewall para permitir conexões TCP na porta 53. A porta 53 é utilizada principalmente para consultas DNS.
+sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT		# Esse comando permite o tráfego HTTP (na porta 80) entrar no seu sistema. Ou seja, qualquer pacote TCP destinado à porta 80 será aceito e permitido passar pelo firewall.
+sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT		# Esse comando configura o firewall para permitir tráfego HTTPS na porta 443. Em outras palavras, ele autoriza a comunicação segura (criptografada) entre clientes (como navegadores) e o servidor na porta 443.
+sudo iptables -A INPUT -p tcp --dport 9090 -j ACCEPT		# Esse comando adiciona uma regra para permitir tráfego TCP na porta 9090, permitindo que os pacotes destinados a essa porta sejam aceitos pelo firewall.
+sudo iptables -A INPUT -p udp --dport 123 -j ACCEPT		# Esse comando configura o firewall para permitir o tráfego UDP na porta 123, o que é necessário para sincronização de tempo usando o NTP. 
+sudo iptables -A INPUT -p tcp --dport 21 -j ACCEPT		# Esse comando permite o tráfego TCP na porta 21, que é utilizada pelo protocolo FTP para controle de conexões. Ele garante que você possa se conectar ao servidor FTP para realizar a autenticação, navegação entre diretórios e outros comandos de controle.
+sudo iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT		# Esse comando permite que pacotes de entrada relacionados a uma conexão já estabelecida ou relacionada sejam aceitos pelo firewall. Isso é útil para garantir que respostas de serviços de rede, como HTTP ou FTP, possam ser recebidas de volta após uma solicitação ser feita.
+sudo iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT		# Esse comando adiciona uma regra para permitir o tráfego encaminhado (não destinado ao sistema, mas que passa por ele entre diferentes redes), que está associado a uma conexão estabelecida ou que é relacionada a uma conexão existente.
+sudo iptables -t nat -A POSTROUTING -o eno1 -j MASQUERADE		# Esse comando cria uma regra de NAT de mascaramento (masquerading) que permite que os dispositivos de uma rede interna (ligados a interfaces de rede internas) possam acessar a internet, mascarando seus endereços IP privados com o IP público da interface eno1. A interface eno1 normalmente seria a interface conectada à rede externa (como a internet). Esse tipo de NAT é comumente usado em roteadores ou gateways que compartilham a conexão de internet.
+
+5- Caminho: cd /etc/systemd/system/ => iremos criar o arquivo vi firewall.service
+6- Criando o: vi firewall.service
+
+[Unit]
+Description=Firewall
+
+[Service]
+ExecStart=/usr/local/bin/firewall.sh start
+ExecStop=/usr/local/bin/firewall.sh stop
+ExecReload=/usr/local/bin/firewall.sh restart
+
+[Install]
+WantedBy=multi-user.target
+
+7- Comandos:
+
+systemctl daemon-reload => para recarregar o systemd
+iptables -L --line-numbers => exibir as regras do firewall com linhas
+iptables -L => exibi todas as regras 
+
+
