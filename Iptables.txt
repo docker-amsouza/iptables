@@ -4,14 +4,19 @@ sudo apt-get remove --auto-remove nftables => para remover o NFTABLES
 sudo apt-get purge nftables => remover por completo o NFTABLES 
 sudo apt-get install iptables => para instalar o IPTABLES 
 
-2- Caminho: cd /usr/local/bin => iremos criar o arquivo vi firewall.sh
-3- chmod +x firewall.sh => para aumentar o nivel de permissão
-	chmod: É o comando usado para alterar as permissões de arquivos ou diretórios no Linux e outros sistemas Unix-like.
-	+x: A opção +x adiciona a permissão de execução ao arquivo.
-	firewall.sh: O nome do arquivo (neste caso, um script shell) ao qual você está adicionando a permissão de execução.
-	
-4- Criando o: vi firewall.sh 
+Crie um diretório => sudo mkdir -p /etc/iptables
+	O parâmetro -p significa que, se algum diretório no caminho já existir, ele não dará erro, e se algum diretório intermediário do caminho não existir, ele será criado automaticamente.
+Caminho: cd /etc/iptables => iremos criar o arquivo vi firewall.sh 
+sudo chmod +x /etc/iptables/firewall.sh => para que o script tenha permissões adequadas para ser executado
 
+2- Explicação do comando:
+    sudo: Executa o comando com privilégios de superusuário (root). Isso é necessário porque você provavelmente não tem permissão de escrever ou alterar arquivos em diretórios de sistema como /etc/iptables/.
+    chmod: É o comando usado para alterar as permissões de um arquivo ou diretório no Linux.
+    +x: O +x adiciona a permissão de execução ao arquivo, ou seja, torna o arquivo executável. Sem essa permissão, o sistema não permitirá que script seja executado.
+    /etc/iptables/firewall.sh: Especifica o caminho do arquivo ao qual você deseja alterar as permissões. No seu caso, o script que contém as regras de firewall.
+    
+Script firewall.sh
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #!/bin/bash
 # Limpar todas as regras pré existentes
 iptables -F		# Esse comando limpa todas as regras de todas as cadeias padrão do iptables (INPUT, FORWARD, OUTPUT) e qualquer outra cadeia personalizada que tenha sido criada.
@@ -31,25 +36,39 @@ sudo iptables -A INPUT -p tcp --dport 21 -j ACCEPT		# Esse comando permite o tr�
 sudo iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT		# Esse comando permite que pacotes de entrada relacionados a uma conexão já estabelecida ou relacionada sejam aceitos pelo firewall. Isso é útil para garantir que respostas de serviços de rede, como HTTP ou FTP, possam ser recebidas de volta após uma solicitação ser feita.
 sudo iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT		# Esse comando adiciona uma regra para permitir o tráfego encaminhado (não destinado ao sistema, mas que passa por ele entre diferentes redes), que está associado a uma conexão estabelecida ou que é relacionada a uma conexão existente.
 sudo iptables -t nat -A POSTROUTING -o eno1 -j MASQUERADE		# Esse comando cria uma regra de NAT de mascaramento (masquerading) que permite que os dispositivos de uma rede interna (ligados a interfaces de rede internas) possam acessar a internet, mascarando seus endereços IP privados com o IP público da interface eno1. A interface eno1 normalmente seria a interface conectada à rede externa (como a internet). Esse tipo de NAT é comumente usado em roteadores ou gateways que compartilham a conexão de internet.
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+3- Adicionar as regras do Iptables na inicialização após o boot <após a reinicialização do servidor>
 
-5- Caminho: cd /etc/systemd/system/ => iremos criar o arquivo vi firewall.service
-6- Criando o: vi firewall.service
+Caminho => cd /etc/systemd/system/
+Crie o arquivo => sudo vi firewall.service
 
+Arquivo firewall.servive
++++++++++++++++++++++++++++++++++++++++++++
 [Unit]
-Description=Firewall
+Description=Firewall Script
+After=network.target
 
 [Service]
-ExecStart=/usr/local/bin/firewall.sh start
-ExecStop=/usr/local/bin/firewall.sh stop
-ExecReload=/usr/local/bin/firewall.sh restart
+ExecStart=/etc/iptables/firewall.sh
+Type=oneshot
+RemainAfterExit=true
 
 [Install]
 WantedBy=multi-user.target
++++++++++++++++++++++++++++++++++++++++++++
 
-7- Comandos:
+sudo systemctl daemon-reload => para recarregar o systemd
+sudo systemctl restart firewall.service => para reiniciar o firewall.service
+sudo systemctl enable firewall.service => para habilitar o serviço firewall.service 
 
-systemctl daemon-reload => para recarregar o systemd
-iptables -L --line-numbers => exibir as regras do firewall com linhas
-iptables -L => exibi todas as regras 
+4- Explicação do Arquivo firewall.servive
 
-
+[Unit]
+    Description: Esta linha fornece uma descrição do serviço. No seu caso, está definida como "Firewall Script", o que indica que o serviço executa um script de firewall.
+    After=network.target: Isso significa que o serviço deve ser iniciado após a configuração da rede. O network.target garante que o serviço só será iniciado quando a rede estiver pronta.
+[Service]
+    ExecStart=/etc/iptables/firewall.sh: Aqui, você define o comando que o systemd deve executar quando o serviço for iniciado. No seu caso, é o script firewall.sh, localizado em /etc/iptables/.
+    Type=oneshot: Isso indica que o serviço executa uma única tarefa (um "one-shot"), ou seja, ele será executado e concluído rapidamente. Após a execução, o serviço será considerado "terminado".
+    RemainAfterExit=true: Essa configuração garante que o systemd considere o serviço como "ativo" mesmo depois que o script terminar de ser executado. Isso é útil para serviços que alteram o sistema, como scripts de firewall, e você quer garantir que o status do serviço indique que ele foi executado corretamente.
+[Install]
+    WantedBy=multi-user.target: Isso indica que o serviço será iniciado automaticamente quando o sistema atingir o "runlevel" multi-user.target, que é equivalente ao modo multiusuário (onde a maioria dos serviços essenciais já está em funcionamento).
