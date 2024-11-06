@@ -19,8 +19,8 @@ Script firewall.sh
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #!/bin/bash
 # Limpar todas as regras pré existentes
-iptables -F		# Esse comando limpa todas as regras de todas as cadeias padrão do iptables (INPUT, FORWARD, OUTPUT) e qualquer outra cadeia personalizada que tenha sido criada.
-iptables -t nat -F	# Esse comando limpa todas as regras de NAT configuradas na tabela nat do iptables.
+sudo iptables -F		# Esse comando limpa todas as regras de todas as cadeias padrão do iptables (INPUT, FORWARD, OUTPUT) e qualquer outra cadeia personalizada que tenha sido criada.
+sudo iptables -t nat -F	# Esse comando limpa todas as regras de NAT configuradas na tabela nat do iptables.
 
 # A linha abaixo ativa o módulo de netfilter que evita ataques DoS
 echo 1 > /proc/sys/net/ipv4/tcp_syncookies		# Esse comando habilita o recurso de TCP SYN cookies, garantindo que o sistema se proteja contra ataques de SYN flood, ao permitir que as conexões incompletas sejam tratadas de forma mais eficiente e sem consumir tantos recursos.
